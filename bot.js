@@ -1,9 +1,11 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const client = new Client({ intents: [
-	GatewayIntentBits.Guilds, 
-	GatewayIntentBits.GuildMessages, 
-	GatewayIntentBits.MessageContent
-] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 
 const axios = require('axios');
 const fs = require("fs");
@@ -28,7 +30,7 @@ const VidTypes = {
 
 let linkRegex = /(?<url>https?:\/\/(www\.)?(?<domain>vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|tiktok\.com\/@(.*[\/]))(?<path>[^\s]+))/;
 const request = async (url, config = {}) => await (await axios.get(url, config));
-const getURLContent = (url) => axios({ url, responseType: 'arraybuffer' }).then(res => res.data).catch((e) => { log.info(e) });
+const getURLContent = (url) => axios({ url, responseType: 'arraybuffer' }).then(res => res.data).catch((e) => { log.info(e); });
 
 let heartbeatInterval;
 
@@ -36,7 +38,7 @@ if (!fs.existsSync("./videos/")) fs.mkdirSync("./videos/");
 if (!fs.existsSync("./images/")) fs.mkdirSync("./images/");
 if (!fs.existsSync("./logs/")) fs.mkdirSync("./logs/");
 
-process.on('SIGTERM', function() {
+process.on('SIGTERM', function () {
     log.info("Caught SIGTERM");
     clearInterval(heartbeatInterval);
     client.destroy();
@@ -71,8 +73,8 @@ client.on('ready', () => {
 
     if (!(process.env.DISABLE_HEARTBEAT && process.env.DISABLE_HEARTBEAT == "true")) {
         heartbeatInterval = setInterval(() => {
-           log.debug(`Heartbeat: ${dlS} successes`);
-        	heartbeat.update(client, dlS, dlF, dlFReasons);
+            log.debug(`Heartbeat: ${dlS} successes`);
+            heartbeat.update(client, dlS, dlF, dlFReasons);
         }, 30 * 1000);
         heartbeat.update(client, dlS, dlF, dlFReasons);
     } else {
@@ -86,7 +88,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply('Pong!');
     } else if (interaction.commandName === 'help') {
         await interaction.reply('Just send a TikTok link and the bot will automatically download and send it in the chat!');
-    } else {}
+    } else { }
 });
 
 client.on('messageCreate', (message) => {
@@ -97,8 +99,10 @@ client.on('messageCreate', (message) => {
             return;
         }
 
+        let threadID = randomAZ();
+
         let url = rgx.groups.url;
-        log.info(`Initiating download on ${url}`);
+        log.info(`[${threadID}] Initiating download on ${url}`);
 
         //start typing, ignore errors
         message.channel.sendTyping().catch((e) => { });
@@ -111,7 +115,7 @@ client.on('messageCreate', (message) => {
                     }
                 })
                     .then((resp) => {
-                        log.info(`Redirect to ${resp.request.res.responseUrl}`)
+                        //log.info(`Redirect to ${resp.request.res.responseUrl}`);
                         res(resp.request.res.responseUrl.split("?")[0]);
                     })
                     .catch((error) => {
@@ -122,7 +126,7 @@ client.on('messageCreate', (message) => {
                 res(rgx.groups.url.split("?")[0]);
             }
         }).then((url) => {
-            log.info(`Downloading ${url}`);
+            log.info(`[${threadID}] Downloading ${url}`);
 
             getTikTokData(url)
                 .then((data) => {
@@ -144,43 +148,43 @@ client.on('messageCreate', (message) => {
                     promise
                         .then((resp) => {
                             message.reply({ files: [resp] }).then(() => {
-                                log.info("Message sent (reply), deleting " + resp);
+                                log.info(`[${threadID}] Message sent (reply), deleting ${resp}`);
                                 fs.unlinkSync(resp);
                                 dlS++;
                             }).catch((e) => {
                                 if (e.code == 50035) {
                                     message.channel.send({ files: [resp] }).then(() => {
-                                        log.info("Message sent (channel), deleting " + resp);
+                                        log.info(`[${threadID}] Message sent (channel), deleting ${resp}`);
                                         fs.unlinkSync(resp);
                                         dlS++;
                                     }).catch((e) => {
-                                        log.error(`Error sending message (2): ${e.toString()}, deleting ${resp}`);
+                                        log.error(`[${threadID}] Error sending message (2): ${e.toString()}, deleting ${resp}`);
                                         fs.unlinkSync(resp);
 
                                         if (!Object.keys(dlFReasons).includes(e.toString())) dlFReasons[e.toString()] = 0;
                                         dlFReasons[e.toString()]++;
-                                        if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!"  || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
+                                        if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
                                     });
                                 } else {
-                                    log.error(`Error sending message (1): ${e}, deleting ${resp}`);
+                                    log.error(`[${threadID}] Error sending message (1): ${e}, deleting ${resp}`);
                                     fs.unlinkSync(resp);
 
                                     if (!Object.keys(dlFReasons).includes(e.toString())) dlFReasons[e.toString()] = 0;
                                     dlFReasons[e.toString()]++;
-                                    if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!"  || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
+                                    if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
                                 }
                                 return;
                             });
                         })
                         .catch((e) => {
                             message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
-                                log.debug(`Count not send video download failure message to channel: ${e.toString()}`);
+                                log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
                             });
                             log.info(`Could not download video: ${e}`);
 
                             if (!Object.keys(dlFReasons).includes(e.toString())) dlFReasons[e.toString()] = 0;
                             dlFReasons[e.toString()]++;
-                            if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!"  || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
+                            if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) dlF++;
                             return;
                         });
                 })
@@ -190,7 +194,7 @@ client.on('messageCreate', (message) => {
         })
             .catch((e) => {
                 message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
-                    log.debug(`Count not send video download failure message to channel: ${e.toString()}`);
+                    log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
                 });
                 log.info(`Could not download video: ${e}`);
 
@@ -206,7 +210,7 @@ function randomAZ(n = 5) {
         .fill(null)
         .map(() => Math.random() * 100 % 25 + 'A'.charCodeAt(0))
         .map(a => String.fromCharCode(a))
-        .join('')
+        .join('');
 }
 
 function getTikTokData(url) {
@@ -217,7 +221,7 @@ function getTikTokData(url) {
         }
 
         puppeteer.launch({
-            headless: "new",
+            headless: (true ? "new" : false),
             devtools: false,
             ignoreHTTPSErrors: true,
             args: [
@@ -230,20 +234,20 @@ function getTikTokData(url) {
                     page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1").then(() => {
                         page.setViewport({ width: 1920, height: 1080 }).then(() => {
                             page.setRequestInterception(true).then(() => {
-                                let videoURL, audioURL, audioClick;
+                                let videoURL, audioURL;
                                 page.on('request', request => {
                                     if (request.resourceType() === 'media') {
-                                        if (!request.url().includes("audio_mpeg")) {
-                                            if (request.url().endsWith(".mp3")) audioURL = decodeURI(request.url()).replace("&amp;", "&");
-                                            else videoURL = decodeURI(request.url()).replace("&amp;", "&");
-                                        }
+                                        if (request.url().includes("audio_mpeg")) { audioURL = request.url().replace("&amp;", "&"); }
+                                        if (request.url().includes("video_mp4")) { videoURL = request.url().replace("&amp;", "&"); }
                                     }
                                     request.continue();
                                 });
                                 page.goto(url, { waitUntil: "networkidle0" })
                                     .then(() => {
+                                        log.debug("Type: " + (videoURL == undefined ? (audioURL == undefined ? "unknown" : "slideshow") : "video"));
                                         if (videoURL != undefined) {
                                             res([VidTypes.Video, videoURL]);
+                                            browser.close();
                                         } else if (audioURL != undefined) {
                                             page.evaluate(() => document.querySelector('*').outerHTML)
                                                 .then((pageHTML) => {
@@ -257,20 +261,23 @@ function getTikTokData(url) {
                                                     });
 
                                                     res([VidTypes.Slideshow, slideImages, audioURL]);
+                                                    browser.close();
                                                 })
                                                 .catch((error) => {
                                                     console.log(error);
-                                                    rej("error")
+                                                    rej("error");
+                                                    browser.close();
                                                 });
                                         } else {
                                             //console.log("AUDIO ONLY");
                                             res([VidTypes.Invalid]);
+                                            browser.close();
                                         }
-                                        browser.close();
                                     })
                                     .catch((error) => {
                                         log.info(error);
                                         rej("NOTFOUND@1");
+                                        browser.close();
                                     });
                             });
                         });
@@ -294,7 +301,7 @@ function downloadVideo(ogURL, vidURL) {
             let pass1Name = `./videos/${id}_${randomName}_pass1.mp4`;
             let pass2Name = `./videos/${id}_${randomName}.mp4`;
 
-			console.log(vidURL);
+            //console.log(vidURL);
             getURLContent(vidURL).then((content) => {
                 fs.writeFileSync(ogName, content);
                 log.info(`Downloaded successfully to ${ogName}`);
@@ -338,7 +345,7 @@ function downloadSlide(ogURL, imageURLs, audioURL) {
                                 .then(() => {
                                     fs.unlinkSync(`./images/${id}_${randomName}_${imageURLkey}.jpg`);
                                     res(`./images/${id}_${randomName}_${imageURLkey}_c.jpg`);
-                                }).catch((e) => {console.log(e);});
+                                }).catch((e) => { console.log(e); });
                         });
                     });
                 });
@@ -372,9 +379,9 @@ function compressVideo(videoInputPath, videoOutputPath, targetSize, pass) {
 
     return new Promise((res, rej) => {
         ffmpeg.ffprobe(videoInputPath, (err, probeOut) => {
-	    if (probeOut.format.size > 8 * 1048576) {
+            if (probeOut.format.size > 8 * 1048576) {
                 //too big
-                log.info(`Encoding ${videoInputPath} to under 8MB (pass ${pass}), current size ${probeOut.format.size / 1048576}MB`);
+                log.debug(`Encoding ${videoInputPath} to under 8MB (pass ${pass}), current size ${probeOut.format.size / 1048576}MB`);
 
                 let duration = probeOut.format.duration;
                 let audioBitrate = probeOut.streams[1].bit_rate;
@@ -399,15 +406,15 @@ function compressVideo(videoInputPath, videoOutputPath, targetSize, pass) {
                     .on('end', () => {
                         fs.unlinkSync(videoInputPath);
                         fs.stat(videoOutputPath, (err, stats) => {
-                            log.info(`Encode done (pass ${pass}), new size ${stats.size / 1048576}MB`);
+                            log.debug(`Encode done (pass ${pass}), new size ${stats.size / 1048576}MB`);
                             res(videoOutputPath);
                         });
                     })
                     .save(videoOutputPath);
             } else {
                 //small enough
-                log.info(`Not encoding ${videoInputPath} (pass ${pass}), already small enough (${probeOut.format.size / 1048576}MB)`); //mebibyte
-                fs.renameSync(videoInputPath, videoOutputPath)
+                log.debug(`Not encoding ${videoInputPath} (pass ${pass}), already small enough (${probeOut.format.size / 1048576}MB)`); //mebibyte
+                fs.renameSync(videoInputPath, videoOutputPath);
                 res(videoOutputPath);
             }
         });
