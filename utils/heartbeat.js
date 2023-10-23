@@ -40,7 +40,7 @@ function updateWebsites(client) {
     	guilds.forEach((g) => {
     	    	users += g.memberCount;
     	});
-/*    	axios.post('https://top.gg/api/bots/946107355316252763/stats', {
+    	axios.post('https://top.gg/api/bots/946107355316252763/stats', {
 			server_count: guilds.size
     		}, { headers: {
 			'Authorization': process.env.TOPGG_TOKEN
@@ -49,7 +49,6 @@ function updateWebsites(client) {
 		}).catch((error) => {
 			log.warn(`Failed to send stats to top.gg: ${error}`);
 		});
-*/
 	axios.post('https://discord.bots.gg/api/v1/bots/946107355316252763/stats', {
 			guildCount: guilds.size
 		}, { headers: {
