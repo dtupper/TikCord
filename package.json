@@ -16,6 +16,6 @@
     "fluent-ffmpeg": "^2.1.2",
     "jssoup": "^0.0.15",
     "puppeteer": "^19.7.1",
-    "sharp": "^0.31.3"
+    "sharp": "^0.32.6"
   }
 }
