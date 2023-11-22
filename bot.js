@@ -4,7 +4,8 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    shards: "auto"
 });
 
 const axios = require('axios');
