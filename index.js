@@ -26,6 +26,7 @@ function reduceObj(ex, add) {
     return ex;
 }
 
+let sinceWebsiteUpdated = 10;
 function updateServerCount() {
     manager.broadcastEval((client) => [client.guilds.cache, client.tiktokstats]).then((shards) => {
         let serverCount = shards.reduce((total, shard) => total + shard[0].length, 0);
@@ -40,19 +41,26 @@ function updateServerCount() {
 
         if (!process.env.DISABLE_HEARTBEAT) {
             //update bot listing sites
-            Object.keys(sites).forEach((site) => {
-                axios.post(site, {
-                    [sites[site].variable]: serverCount
-                }, {
-                    headers: {
-                        'Authorization': sites[site].token
-                    }
-                })
-                    .then((res) => { })
-                    .catch((error) => {
-                        log.warn(`Failed to send stats to ${site}: ${error}`);
-                    });
-            });
+            if (sinceWebsiteUpdated > 9) {
+                Object.keys(sites).forEach((site) => {
+                    axios.post(site, {
+                        [sites[site].variable]: serverCount
+                    }, {
+                        headers: {
+                            'Authorization': sites[site].token
+                        }
+                    })
+                        .then((res) => {
+                            console.log(`Updated ${site}`);
+                        })
+                        .catch((error) => {
+                            console.log(`Failed to send stats to ${site}: ${error}`);
+                        });
+                });
+                sinceWebsiteUpdated = 0;
+            } else {
+                sinceWebsiteUpdated++;
+            }
 
             //update manager
             axios.post('https://manager.snadol.com/api', {
@@ -79,7 +87,7 @@ manager.spawn({
     delay: 1000
 }).then(() => {
     updateServerCount();
-    setInterval(updateServerCount, 5 * 60 * 1000);
+    setInterval(updateServerCount, 30 * 1000);
 });
 
 process.on('SIGINT', function () {
