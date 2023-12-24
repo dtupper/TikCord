@@ -1,6 +1,7 @@
 const {
     Client,
     GatewayIntentBits,
+    PermissionsBitField,
     SlashCommandBuilder,
     EmbedBuilder,
     REST,
@@ -30,9 +31,6 @@ log.init(shardId);
 const commands = [
     new SlashCommandBuilder().setName('help').setDescription('Displays the help message'),
     new SlashCommandBuilder().setName('ping').setDescription('Pings the bot\'s servers'),
-];
-const test_commands = [
-    new SlashCommandBuilder().setName("shards").setDescription("get list of shards"),
 
     new SlashCommandBuilder().setName('settings').setDescription('Set settings for this server (must be admin)')
         .addStringOption(option =>
@@ -49,6 +47,9 @@ const test_commands = [
                     { name: 'True', value: 'true' },
                     { name: 'False', value: 'false' }
                 ))
+];
+const test_commands = [
+    new SlashCommandBuilder().setName("shards").setDescription("get list of shards")
 ];
 
 const linkRegex = /(?<url>https?:\/\/(www\.)?(?<domain>vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|tiktok\.com\/@(.*[\/]))(?<path>[^\s]+))/;
@@ -116,37 +117,41 @@ client.on('interactionCreate', async interaction => {
     } else if (interaction.commandName === 'help') {
         await interaction.reply('Just send a TikTok link and the bot will automatically download and send it in the chat!');
     } else if (interaction.commandName === "settings") {
-        let options = { setting: interaction.options.getString('setting'), value: interaction.options.getString('value') };
-        if (!options.setting && !options.value) {
-            settings.getSetting(interaction.guild.id).then((settings) => {
-                let embedFields = [];
-                Object.keys(settings).forEach((setting) => {
-                    embedFields.push(
-                        {
-                            name: setting,
-                            value: settings[setting],
-                            inline: true
-                        }
-                    );
+        if (interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+            let options = { setting: interaction.options.getString('setting'), value: interaction.options.getString('value') };
+            if (!options.setting && !options.value) {
+                settings.getSetting(interaction.guild.id).then((settings) => {
+                    let embedFields = [];
+                    Object.keys(settings).forEach((setting) => {
+                        embedFields.push(
+                            {
+                                name: setting,
+                                value: settings[setting],
+                                inline: true
+                            }
+                        );
+                    });
+                    interaction.reply({
+                        embeds: [{
+                            title: "Settings",
+                            fields: embedFields,
+                            color: 0x00FF00
+                        }]
+                    });
                 });
-                interaction.reply({
-                    embeds: [{
-                        title: "Settings",
-                        fields: embedFields,
-                        color: 0x00FF00
-                    }]
-                });
-            });
-        } else if (!options.setting || !options.value) {
-            interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ You must supply either no setting and value (to view settings) or both setting and value (to set that setting to that value)`)] });
-        } else {
-            if (["deleteMessage", "deleteEmbed"].includes(options.setting) && ["true", "false"].includes(options.value)) {
-                settings.setSetting(interaction.guild.id, options.setting, options.value == "true").then(() => {
-                    interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00FF00).setTitle(`✅ ${options.setting} set to ${options.value}!`)] });
-                });
+            } else if (!options.setting || !options.value) {
+                interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ You must supply either no setting and value (to view settings) or both setting and value (to set that setting to that value)`)] });
             } else {
-                interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ Unknown setting or value!`)] });
+                if (["deleteMessage", "deleteEmbed"].includes(options.setting) && ["true", "false"].includes(options.value)) {
+                    settings.setSetting(interaction.guild.id, options.setting, options.value == "true").then(() => {
+                        interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00FF00).setTitle(`✅ ${options.setting} set to ${options.value}!`)] });
+                    });
+                } else {
+                    interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ Unknown setting or value!`)] });
+                }
             }
+        } else {
+            interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ You do not have permission to do this!`)] });
         }
     } else if (interaction.commandName === "shards") {
         client.shard.broadcastEval((client) => [client.shard.ids, client.ws.status, client.ws.ping, client.guilds.cache.size, client.tiktokstats])
