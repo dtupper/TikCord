@@ -63,7 +63,7 @@ function downloadVideo(threadID, ogURL, vidURL) {
             //console.log(vidURL);
             getURLContent(vidURL).then((content) => {
                 fs.writeFileSync(ogName, content);
-                log.info(`Downloaded successfully to ${ogName}`);
+                log.info(`[${threadID}] Downloaded successfully to ${ogName}`);
 
                 ffmpegutils.compressVideo(ogName, pass1Name, 8, 1)
                     .then((compressedName) => {

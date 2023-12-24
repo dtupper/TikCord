@@ -14,6 +14,7 @@ require('dotenv').config();
 
 const log = require("./log.js");
 const tiktok = require("./tiktok.js");
+const settings = require("./settings.js");
 
 const client = new Client({
     intents: [
@@ -28,10 +29,26 @@ log.init(shardId);
 
 const commands = [
     new SlashCommandBuilder().setName('help').setDescription('Displays the help message'),
-    new SlashCommandBuilder().setName('ping').setDescription('Pings the bot\'s servers')
+    new SlashCommandBuilder().setName('ping').setDescription('Pings the bot\'s servers'),
 ];
 const test_commands = [
-    new SlashCommandBuilder().setName("shards").setDescription("get list of shards")
+    new SlashCommandBuilder().setName("shards").setDescription("get list of shards"),
+
+    new SlashCommandBuilder().setName('settings').setDescription('Set settings for this server (must be admin)')
+        .addStringOption(option =>
+            option.setName('setting')
+                .setDescription('the setting to adjust')
+                .addChoices(
+                    { name: 'DeleteMessage', value: 'deleteMessage' },
+                    { name: 'DeleteEmbed', value: 'deleteEmbed' }
+                ))
+        .addStringOption(option =>
+            option.setName('value')
+                .setDescription('the new value of the setting')
+                .addChoices(
+                    { name: 'True', value: 'true' },
+                    { name: 'False', value: 'false' }
+                ))
 ];
 
 const linkRegex = /(?<url>https?:\/\/(www\.)?(?<domain>vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|tiktok\.com\/@(.*[\/]))(?<path>[^\s]+))/;
@@ -65,6 +82,7 @@ process.on('uncaughtException', function (err) {
     }
 });
 
+settings.init();
 client.tiktokstats = {
     dlS: 0,
     dlF: 0,
@@ -97,6 +115,39 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply('Pong!');
     } else if (interaction.commandName === 'help') {
         await interaction.reply('Just send a TikTok link and the bot will automatically download and send it in the chat!');
+    } else if (interaction.commandName === "settings") {
+        let options = { setting: interaction.options.getString('setting'), value: interaction.options.getString('value') };
+        if (!options.setting && !options.value) {
+            settings.getSetting(interaction.guild.id).then((settings) => {
+                let embedFields = [];
+                Object.keys(settings).forEach((setting) => {
+                    embedFields.push(
+                        {
+                            name: setting,
+                            value: settings[setting],
+                            inline: true
+                        }
+                    );
+                });
+                interaction.reply({
+                    embeds: [{
+                        title: "Settings",
+                        fields: embedFields,
+                        color: 0x00FF00
+                    }]
+                });
+            });
+        } else if (!options.setting || !options.value) {
+            interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ You must supply either no setting and value (to view settings) or both setting and value (to set that setting to that value)`)] });
+        } else {
+            if (["deleteMessage", "deleteEmbed"].includes(options.setting) && ["true", "false"].includes(options.value)) {
+                settings.setSetting(interaction.guild.id, options.setting, options.value == "true").then(() => {
+                    interaction.reply({ embeds: [new EmbedBuilder().setColor(0x00FF00).setTitle(`✅ ${options.setting} set to ${options.value}!`)] });
+                });
+            } else {
+                interaction.reply({ embeds: [new EmbedBuilder().setColor(0xFF0000).setTitle(`❌ Unknown setting or value!`)] });
+            }
+        }
     } else if (interaction.commandName === "shards") {
         client.shard.broadcastEval((client) => [client.shard.ids, client.ws.status, client.ws.ping, client.guilds.cache.size, client.tiktokstats])
             .then((results) => {
@@ -167,6 +218,8 @@ client.on('messageCreate', (message) => {
 
             tiktok.getTikTokData(url)
                 .then((data) => {
+                    log.info(`[${threadID}] API request done, type ${data[0]}`);
+
                     let promise;
                     switch (data[0]) {
                         case tiktok.VidTypes.Video:
@@ -185,15 +238,36 @@ client.on('messageCreate', (message) => {
                     promise
                         .then((resp) => {
                             message.reply({ files: [resp] }).then(() => {
+                                //sending as reply to initial message
                                 log.info(`[${threadID}] Message sent (reply), deleting ${resp}`);
                                 fs.unlinkSync(resp);
                                 client.tiktokstats.dlS++;
+
+                                settings.getSetting(message.guild.id).then((settings) => {
+                                    if (settings.deleteMessage) {
+                                        log.info(`[${threadID}] Removing original message`);
+                                        message.delete();
+                                    } else {
+                                        if (settings.deleteEmbed) {
+                                            log.info(`[${threadID}] Removing embed for original message`);
+                                            message.suppressEmbeds(true);
+                                        }
+                                    }
+                                });
                             }).catch((e) => {
                                 if (e.code == 50035) {
                                     message.channel.send({ files: [resp] }).then(() => {
+                                        //could not reply to embed, sending regularly
                                         log.info(`[${threadID}] Message sent (channel), deleting ${resp}`);
                                         fs.unlinkSync(resp);
                                         client.tiktokstats.dlS++;
+
+                                        settings.getSetting(message.guild.id).then((settings) => {
+                                            if (settings.deleteEmbed) {
+                                                log.info(`[${threadID}] Removing embed for original message`);
+                                                message.suppressEmbeds(true);
+                                            }
+                                        });
                                     }).catch((e) => {
                                         log.error(`[${threadID}] Error sending message (2): ${e.toString()}, deleting ${resp}`);
                                         fs.unlinkSync(resp);

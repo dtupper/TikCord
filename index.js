@@ -82,7 +82,7 @@ function updateServerCount() {
     });
 }
 
-const manager = new ShardingManager('./bot/bot.js', { token: process.env.TOKEN, totalShards: 6 });
+const manager = new ShardingManager('./bot/bot.js', { token: process.env.TOKEN, totalShards: parseInt(process.env.SHARD_COUNT) });
 manager.spawn({
     delay: 500
 }).then(() => {
