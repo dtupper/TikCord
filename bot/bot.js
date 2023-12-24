@@ -176,7 +176,7 @@ client.on('messageCreate', (message) => {
                             promise = tiktok.downloadSlide(threadID, url, data[1], data[2]);
                             break;
                         case tiktok.VidTypes.Invalid:
-                            promise = new Promise((res, rej) => { rej(data[1]); });
+                            promise = new Promise((res, rej) => { rej(data[1], data[2]); });
                             break;
                         default:
                             promise = new Promise((res, rej) => { rej("BADTYPE"); });
@@ -213,10 +213,12 @@ client.on('messageCreate', (message) => {
                                 return;
                             });
                         })
-                        .catch((e) => {
-                            message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
-                                log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
-                            });
+                        .catch((e, send) => {
+                            if (send) {
+                                message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
+                                    log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
+                                });
+                            }
                             log.info(`Could not download video: ${e}`);
 
                             if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;

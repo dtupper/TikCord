@@ -19,19 +19,19 @@ const getURLContent = (url) => axios({ url, responseType: 'arraybuffer' }).then(
 
 function getTikTokData(url) {
     return new Promise((res, rej) => {
-        if (url.endsWith(".com/") || url.endsWith("/live")) {
-            log.info(`Link is not a valid TikTok video!`);
-            res([VidTypes.Invalid]);
+        const urlRe = /https:\/\/www\.tiktok\.com\/(?<user>.*?)\/video\/(?<id>\d*)/.exec(url);
+        if (!urlRe) {
+            res([VidTypes.Invalid, "link is not a valid TikTok video!", false]);
         }
 
         axios({
             method: 'get',
-            url: `https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${url.split("/")[5]}`
+            url: `https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${urlRe.groups.id}`
         })
         .then(function (response) {
             let result = response.data;
-            if (result.aweme_list[0].aweme_id != url.split("/")[5]) {
-                res([VidTypes.Invalid, "video was deleted!"]);
+            if (result.aweme_list[0].aweme_id != urlRe.groups.id) {
+                res([VidTypes.Invalid, "video was deleted!", true]);
             }
 
             if (!!result.aweme_list[0].image_post_info) {
