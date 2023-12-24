@@ -176,7 +176,7 @@ client.on('messageCreate', (message) => {
                             promise = tiktok.downloadSlide(threadID, url, data[1], data[2]);
                             break;
                         case tiktok.VidTypes.Invalid:
-                            promise = new Promise((res, rej) => { rej("NOTVIDEO"); });
+                            promise = new Promise((res, rej) => { rej(data[1]); });
                             break;
                         default:
                             promise = new Promise((res, rej) => { rej("BADTYPE"); });

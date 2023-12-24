@@ -24,70 +24,26 @@ function getTikTokData(url) {
             res([VidTypes.Invalid]);
         }
 
-        puppeteer.launch({
-            headless: (true ? "new" : false),
-            devtools: false,
-            ignoreHTTPSErrors: true,
-            args: [
-                '--no-sandbox', "--fast-start", "--disable-extensions", "--disable-gpu",
-                //'--proxy-server=socks5://127.0.0.1:8080'
-            ]
-        }).then((browser) => {
-            browser.newPage().then((page) => {
-                page.setCacheEnabled(false).then(() => {
-                    page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1").then(() => {
-                        page.setViewport({ width: 1920, height: 1080 }).then(() => {
-                            page.setRequestInterception(true).then(() => {
-                                let videoURL, audioURL;
-                                page.on('request', request => {
-                                    if (request.resourceType() === 'media') {
-                                        if (request.url().includes("audio_mpeg")) { audioURL = request.url().replace("&amp;", "&"); }
-                                        if (request.url().includes("video_mp4")) { videoURL = request.url().replace("&amp;", "&"); }
-                                    }
-                                    request.continue();
-                                });
-                                page.goto(url, { waitUntil: "networkidle0" })
-                                    .then(() => {
-                                        log.debug("Type: " + (videoURL == undefined ? (audioURL == undefined ? "unknown" : "slideshow") : "video"));
-                                        if (videoURL != undefined) {
-                                            res([VidTypes.Video, videoURL]);
-                                            browser.close();
-                                        } else if (audioURL != undefined) {
-                                            page.evaluate(() => document.querySelector('*').outerHTML)
-                                                .then((pageHTML) => {
-                                                    let soup = new jssoup(pageHTML);
-                                                    let slides = soup.findAll('div', { class: "swiper-slide" });
-                                                    let slideImages = {};
-                                                    slides.forEach((slide) => {
-                                                        if (slide.contents[0].attrs.src != undefined) {
-                                                            slideImages[slide.attrs['data-swiper-slide-index']] = decodeURI(slide.contents[0].attrs.src).replace("&amp;", "&");
-                                                        }
-                                                    });
+        axios({
+            method: 'get',
+            url: `https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${url.split("/")[5]}`
+        })
+        .then(function (response) {
+            let result = response.data;
+            if (result.aweme_list[0].aweme_id != url.split("/")[5]) {
+                res([VidTypes.Invalid, "video was deleted!"]);
+            }
 
-                                                    res([VidTypes.Slideshow, slideImages, audioURL]);
-                                                    browser.close();
-                                                })
-                                                .catch((error) => {
-                                                    console.log(error);
-                                                    rej("error");
-                                                    browser.close();
-                                                });
-                                        } else {
-                                            //console.log("AUDIO ONLY");
-                                            res([VidTypes.Invalid]);
-                                            browser.close();
-                                        }
-                                    })
-                                    .catch((error) => {
-                                        log.info(error);
-                                        rej("NOTFOUND@1");
-                                        browser.close();
-                                    });
-                            });
-                        });
-                    });
-                });
-            });
+            if (!!result.aweme_list[0].image_post_info) {
+                let slideImgs = result.aweme_list[0].image_post_info.images.map((img) => { return img.display_image.url_list[0]; });
+                slideImgs.push(slideImgs.slice(-1)[0]);
+                res([VidTypes.Slideshow, slideImgs, result.aweme_list[0].video.play_addr.url_list[0]]);
+            } else {
+                res([VidTypes.Video, result.aweme_list[0].video.play_addr.url_list[0]]);
+            }
+        })
+        .catch(function (error) {
+            console.log(error);
         });
     });
 }
@@ -175,4 +131,4 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
     });
 }
 
-module.exports = { VidTypes, getTikTokData, downloadVideo, downloadSlide }
+module.exports = { VidTypes, getTikTokData, downloadVideo, downloadSlide };
