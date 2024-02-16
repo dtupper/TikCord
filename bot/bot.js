@@ -11,6 +11,7 @@ const {
 const axios = require('axios');
 const fs = require("fs");
 const process = require("process");
+const tmp = require("tmp");
 require('dotenv').config();
 
 const log = require("./log.js");
@@ -27,6 +28,13 @@ const client = new Client({
 
 const shardId = client.shard.ids[0];
 log.init(shardId);
+
+const ramDisk = {
+    name: "/dev/shm/tikcord/"
+}
+if (!fs.existsSync(ramDisk.name)) fs.mkdirSync(ramDisk.name);
+settings.init();
+tiktok.init(ramDisk);
 
 const commands = [
     new SlashCommandBuilder().setName('help').setDescription('Displays the help message'),
@@ -55,8 +63,8 @@ const test_commands = [
 const linkRegex = /(?<url>https?:\/\/(www\.)?(?<domain>vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|tiktok\.com\/@(.*[\/]))(?<path>[^\s]+))/;
 const request = async (url, config = {}) => await (await axios.get(url, config));
 
-if (!fs.existsSync("./bot/videos/")) fs.mkdirSync("./bot/videos/");
-if (!fs.existsSync("./bot/images/")) fs.mkdirSync("./bot/images/");
+if (!fs.existsSync(`${ramDisk.name}/videos/`)) fs.mkdirSync(`${ramDisk.name}/videos/`);
+if (!fs.existsSync(`${ramDisk.name}/images/`)) fs.mkdirSync(`${ramDisk.name}/images/`);
 
 process.on('SIGINT', function () {
     log.info("Caught SIGINT");
@@ -83,7 +91,6 @@ process.on('uncaughtException', function (err) {
     }
 });
 
-settings.init();
 client.tiktokstats = {
     dlS: 0,
     dlF: 0,
@@ -221,7 +228,7 @@ client.on('messageCreate', (message) => {
         }).then((url) => {
             log.info(`[${threadID}] Downloading ${url}`);
 
-            tiktok.getTikTokData(url)
+            tiktok.getTikTokData(threadID, url)
                 .then((data) => {
                     log.info(`[${threadID}] API request done, type ${data[0]}`);
 

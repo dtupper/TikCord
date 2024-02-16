@@ -1,5 +1,3 @@
-const puppeteer = require('puppeteer');
-const jssoup = require('jssoup').default;
 const sharp = require('sharp');
 const https = require('https');
 const fs = require("fs");
@@ -17,19 +15,30 @@ const VidTypes = {
 const axios = require('axios');
 const getURLContent = (url) => axios({ url, responseType: 'arraybuffer' }).then(res => res.data).catch((e) => { log.info(e); });
 
-function getTikTokData(url) {
+let ramDisk;
+function init(disk) {
+    ramDisk = disk;
+}
+
+function getTikTokData(threadID, url) {
     return new Promise((res, rej) => {
+        log.debug(`[${threadID}] Fetching data from API for ${url}`);
+
         const urlRe = /https:\/\/www\.tiktok\.com\/(?<user>.*?)\/video\/(?<id>\d*)/.exec(url);
         if (!urlRe) {
             res([VidTypes.Invalid, "link is not a valid TikTok video!", false]);
         }
 
+        log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
+        log.debug(`[${threadID}] Requesting https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${urlRe.groups.id}`);
         axios({
             method: 'get',
             url: `https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${urlRe.groups.id}`
         })
         .then(function (response) {
             let result = response.data;
+            log.debug(`[${threadID}] Data length ${JSON.stringify(result).length}`);
+
             if (result.aweme_list[0].aweme_id != urlRe.groups.id) {
                 res([VidTypes.Invalid, "video was deleted!", true]);
             }
@@ -56,9 +65,9 @@ function downloadVideo(threadID, ogURL, vidURL) {
         } else {
             let id = ogURL.split("?")[0].split("/")[5];
 
-            let ogName = `./bot/videos/${id}_${threadID}_encode.mp4`;
-            let pass1Name = `./bot/videos/${id}_${threadID}_pass1.mp4`;
-            let pass2Name = `./bot/videos/${id}_${threadID}.mp4`;
+            let ogName = `${ramDisk.name}/videos/${id}_${threadID}_encode.mp4`;
+            let pass1Name = `${ramDisk.name}/videos/${id}_${threadID}_pass1.mp4`;
+            let pass2Name = `${ramDisk.name}/videos/${id}_${threadID}.mp4`;
 
             //console.log(vidURL);
             getURLContent(vidURL).then((content) => {
@@ -81,28 +90,28 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
         let promises = [];
 
         promises.push(new Promise((res, rej) => {
-            let file = fs.createWriteStream(`./bot/images/${id}_${threadID}_0.mp3`);
+            let file = fs.createWriteStream(`${ramDisk.name}/images/${id}_${threadID}_0.mp3`);
             https.get(audioURL, function (response) {
                 response.pipe(file);
                 file.on("finish", () => {
                     file.close();
-                    res(`./bot/images/${id}_${threadID}_0.mp3`);
+                    res(`${ramDisk.name}/images/${id}_${threadID}_0.mp3`);
                 });
             });
         }));
         Object.keys(imageURLs).forEach((imageURLkey) => {
             promises.push(new Promise((res, rej) => {
-                let file = fs.createWriteStream(`./bot/images/${id}_${threadID}_${imageURLkey}.jpg`);
+                let file = fs.createWriteStream(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`);
                 https.get(imageURLs[imageURLkey], function (response) {
                     response.pipe(file);
                     file.on("finish", () => {
                         file.close(() => {
-                            sharp(`./bot/images/${id}_${threadID}_${imageURLkey}.jpg`)
+                            sharp(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`)
                                 .toColourspace('srgb')
-                                .toFile(`./bot/images/${id}_${threadID}_${imageURLkey}_c.jpg`)
+                                .toFile(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`)
                                 .then(() => {
-                                    fs.unlinkSync(`./bot/images/${id}_${threadID}_${imageURLkey}.jpg`);
-                                    res(`./bot/images/${id}_${threadID}_${imageURLkey}_c.jpg`);
+                                    fs.unlinkSync(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`);
+                                    res(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`);
                                 }).catch((e) => { console.log(e); });
                         });
                     });
@@ -111,8 +120,8 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
         });
 
         Promise.all(promises).then((results) => {
-            let videoName = `bot/videos/${id}_${threadID}.mp4`;
-            let pass1Name = `bot/videos/${id}_${threadID}_pass1.mp4`;
+            let videoName = `${ramDisk.name}/videos/${id}_${threadID}.mp4`;
+            let pass1Name = `${ramDisk.name}/videos/${id}_${threadID}_pass1.mp4`;
 
             let ffmpegExec = exec(`ffmpeg -hide_banner -loglevel error -r 1/2.5 -start_number 0 -i ${process.cwd()}/bot/images/${id}_${threadID}_%01d_c.jpg -i ${process.cwd()}/bot/images/${id}_${threadID}_0.mp3 -map 0 -map 1 -shortest -c:v libx264 -vf "scale=\'if(gt(a*sar,16/9),640,360*iw*sar/ih)\':\'if(gt(a*sar,16/9),640*ih/iw/sar,360)\',pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30 -pix_fmt yuv420p ${process.cwd()}/${videoName}`, (error, stdout, stderr) => {
                 if (error || stderr) { console.log(`error: ${error}, ${stderr}`); return; }
@@ -131,4 +140,4 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
     });
 }
 
-module.exports = { VidTypes, getTikTokData, downloadVideo, downloadSlide };
+module.exports = { init, VidTypes, getTikTokData, downloadVideo, downloadSlide };

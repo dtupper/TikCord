@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 function init() {
-    if (!fs.existsSync("./bot/settings/")) fs.mkdirSync("./bot/settings/");
+    if (!fs.existsSync(`./bot/settings/`)) fs.mkdirSync(`./bot/settings/`);
 }
 
 function initServer(guildId) {

@@ -16,7 +16,7 @@ function info(message) {
 }
 
 function debug(message) {
-    //console.log(`[${shardId}] [${Date.now()}] [DBG] ${message}`);
+    console.log(`[${shardId}] [${Date.now()}] [DBG] ${message}`);
 }
 
 module.exports = { init, debug, info, warn, error }
