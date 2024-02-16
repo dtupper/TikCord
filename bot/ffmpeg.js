@@ -3,15 +3,15 @@ const fs = require("fs");
 
 const log = require("./log.js");
 
-function compressVideo(videoInputPath, videoOutputPath, targetSize, pass) {
+function compressVideo(dir, videoInputPath, videoOutputPath, targetSize, pass) {
     let min_audio_bitrate = 32000;
     let max_audio_bitrate = 256000;
 
     return new Promise((res, rej) => {
-        ffmpeg.ffprobe(videoInputPath, (err, probeOut) => {
+        ffmpeg.ffprobe(dir + videoInputPath, (err, probeOut) => {
             if (probeOut.format.size > 8 * 1048576) {
                 //too big
-                log.debug(`Encoding ${videoInputPath} to under 8MB (pass ${pass}), current size ${probeOut.format.size / 1048576}MB`);
+                log.debug(`Encoding ${dir + videoInputPath} to under 8MB (pass ${pass}), current size ${probeOut.format.size / 1048576}MB`);
 
                 let duration = probeOut.format.duration;
                 let audioBitrate = probeOut.streams[1].bit_rate;
@@ -23,7 +23,7 @@ function compressVideo(videoInputPath, videoOutputPath, targetSize, pass) {
                 }
                 let videoBitrate = targetTotalBitrate - audioBitrate;
 
-                ffmpeg(videoInputPath, { logger: log })
+                ffmpeg(dir + videoInputPath, { logger: log })
                     .outputOptions([
                         '-b:v ' + videoBitrate,
                         '-b:a ' + audioBitrate,
@@ -34,18 +34,18 @@ function compressVideo(videoInputPath, videoOutputPath, targetSize, pass) {
                         rej();
                     })
                     .on('end', () => {
-                        fs.unlinkSync(videoInputPath);
-                        fs.stat(videoOutputPath, (err, stats) => {
+                        fs.unlinkSync(dir + videoInputPath);
+                        fs.stat(dir + videoOutputPath, (err, stats) => {
                             log.debug(`Encode done (pass ${pass}), new size ${stats.size / 1048576}MB`);
-                            res(videoOutputPath);
+                            res(dir + videoOutputPath);
                         });
                     })
-                    .save(videoOutputPath);
+                    .save(dir + videoOutputPath);
             } else {
                 //small enough
-                log.debug(`Not encoding ${videoInputPath} (pass ${pass}), already small enough (${probeOut.format.size / 1048576}MB)`); //mebibyte
-                fs.renameSync(videoInputPath, videoOutputPath);
-                res(videoOutputPath);
+                log.debug(`Not encoding ${dir + videoInputPath} (pass ${pass}), already small enough (${probeOut.format.size / 1048576}MB)`); //mebibyte
+                fs.renameSync(dir + videoInputPath, dir + videoOutputPath);
+                res(dir + videoOutputPath);
             }
         });
     });

@@ -108,11 +108,12 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
                         file.close(() => {
                             sharp(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`)
                                 .toColourspace('srgb')
-                                .toFile(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`)
-                                .then(() => {
+                                .toFile(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`, (err, info) => {
+                                    if (err) { rej(err); return; }
+
                                     fs.unlinkSync(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`);
                                     res(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`);
-                                }).catch((e) => { console.log(e); });
+                                })
                         });
                     });
                 });
@@ -120,10 +121,11 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
         });
 
         Promise.all(promises).then((results) => {
-            let videoName = `${ramDisk.name}/videos/${id}_${threadID}.mp4`;
-            let pass1Name = `${ramDisk.name}/videos/${id}_${threadID}_pass1.mp4`;
+            let dir = `${ramDisk.name}/videos/`;
+            let videoName = `${id}_${threadID}.mp4`;
+            let pass1Name = `${id}_${threadID}_pass1.mp4`;
 
-            let ffmpegExec = exec(`ffmpeg -hide_banner -loglevel error -r 1/2.5 -start_number 0 -i ${process.cwd()}/bot/images/${id}_${threadID}_%01d_c.jpg -i ${process.cwd()}/bot/images/${id}_${threadID}_0.mp3 -map 0 -map 1 -shortest -c:v libx264 -vf "scale=\'if(gt(a*sar,16/9),640,360*iw*sar/ih)\':\'if(gt(a*sar,16/9),640*ih/iw/sar,360)\',pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30 -pix_fmt yuv420p ${process.cwd()}/${videoName}`, (error, stdout, stderr) => {
+            let ffmpegExec = exec(`ffmpeg -hide_banner -loglevel error -r 1/2.5 -start_number 0 -i ${ramDisk.name}/images/${id}_${threadID}_%01d_c.jpg -i ${ramDisk.name}/images/${id}_${threadID}_0.mp3 -map 0 -map 1 -shortest -c:v libx264 -vf "scale=\'if(gt(a*sar,16/9),640,360*iw*sar/ih)\':\'if(gt(a*sar,16/9),640*ih/iw/sar,360)\',pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1" -r 30 -pix_fmt yuv420p ${ramDisk.name}/videos/${videoName}`, (error, stdout, stderr) => {
                 if (error || stderr) { console.log(`error: ${error}, ${stderr}`); return; }
             });
             ffmpegExec.stdout.pipe(process.stdout);
@@ -132,7 +134,7 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
                     fs.unlinkSync(f);
                 });
 
-                ffmpegutils.compressVideo(videoName, pass1Name, 8, 1).then((encodedName) => {
+                ffmpegutils.compressVideo(dir, videoName, pass1Name, 8, 1).then((encodedName) => {
                     res(encodedName);
                 }).catch((e) => { log.error(e); rej(e); });
             });

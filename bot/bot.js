@@ -30,7 +30,7 @@ const shardId = client.shard.ids[0];
 log.init(shardId);
 
 const ramDisk = {
-    name: "/dev/shm/tikcord/"
+    name: "/dev/shm/tikcord"
 }
 if (!fs.existsSync(ramDisk.name)) fs.mkdirSync(ramDisk.name);
 settings.init();
