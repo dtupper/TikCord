@@ -65,16 +65,17 @@ function downloadVideo(threadID, ogURL, vidURL) {
         } else {
             let id = ogURL.split("?")[0].split("/")[5];
 
-            let ogName = `${ramDisk.name}/videos/${id}_${threadID}_encode.mp4`;
-            let pass1Name = `${ramDisk.name}/videos/${id}_${threadID}_pass1.mp4`;
-            let pass2Name = `${ramDisk.name}/videos/${id}_${threadID}.mp4`;
+            let dir = `${ramDisk.name}/videos/`;
+            let ogName = `${id}_${threadID}_encode.mp4`;
+            let pass1Name = `${id}_${threadID}_pass1.mp4`;
+            //let pass2Name = `${ramDisk.name}/videos/${id}_${threadID}.mp4`;
 
             //console.log(vidURL);
             getURLContent(vidURL).then((content) => {
-                fs.writeFileSync(ogName, content);
-                log.info(`[${threadID}] Downloaded successfully to ${ogName}`);
+                fs.writeFileSync(dir + ogName, content);
+                log.info(`[${threadID}] Downloaded successfully to ${dir + ogName}`);
 
-                ffmpegutils.compressVideo(ogName, pass1Name, 8, 1)
+                ffmpegutils.compressVideo(dir, ogName, pass1Name, 8, 1)
                     .then((compressedName) => {
                         res(compressedName);
                     })

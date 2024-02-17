@@ -9,6 +9,7 @@ function compressVideo(dir, videoInputPath, videoOutputPath, targetSize, pass) {
 
     return new Promise((res, rej) => {
         ffmpeg.ffprobe(dir + videoInputPath, (err, probeOut) => {
+            if (err) { console.log(err); rej(err); }
             if (probeOut.format.size > 8 * 1048576) {
                 //too big
                 log.debug(`Encoding ${dir + videoInputPath} to under 8MB (pass ${pass}), current size ${probeOut.format.size / 1048576}MB`);
