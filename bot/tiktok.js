@@ -1,4 +1,6 @@
 const sharp = require('sharp');
+const puppeteer = require('puppeteer');
+const jssoup = require('jssoup').default;
 const https = require('https');
 const fs = require("fs");
 const { exec } = require("child_process");
@@ -30,25 +32,21 @@ function getTikTokData(threadID, url) {
         }
 
         log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
-        log.debug(`[${threadID}] Requesting https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${urlRe.groups.id}`);
+        log.debug(`[${threadID}] Requesting http://192.168.1.214:9000/api?url=${url}`);
         axios({
             method: 'get',
-            url: `https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/?aweme_id=${urlRe.groups.id}`
+            url: `http://192.168.1.214:9000/api?url=${url}`
         })
         .then(function (response) {
             let result = response.data;
             log.debug(`[${threadID}] Data length ${JSON.stringify(result).length}`);
 
-            if (result.aweme_list[0].aweme_id != urlRe.groups.id) {
-                res([VidTypes.Invalid, "video was deleted!", true]);
-            }
-
-            if (!!result.aweme_list[0].image_post_info) {
-                let slideImgs = result.aweme_list[0].image_post_info.images.map((img) => { return img.display_image.url_list[0]; });
-                slideImgs.push(slideImgs.slice(-1)[0]);
-                res([VidTypes.Slideshow, slideImgs, result.aweme_list[0].video.play_addr.url_list[0]]);
+            if (Object.keys(result).includes("image_data")) {
+                res([VidTypes.Slideshow, [...result.image_data.no_watermark_image_list, result.image_data.no_watermark_image_list[result.image_data.no_watermark_image_list.length - 1]], result.music.play_url.uri]);
+            } else if (Object.keys(result).includes("video_data")) {
+                res([VidTypes.Video, result.video_data.nwm_video_url_HQ]);
             } else {
-                res([VidTypes.Video, result.aweme_list[0].video.play_addr.url_list[0]]);
+                res([VidTypes.Invalid, "unknown video!"]);
             }
         })
         .catch(function (error) {
@@ -114,7 +112,7 @@ function downloadSlide(threadID, ogURL, imageURLs, audioURL) {
 
                                     fs.unlinkSync(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}.jpg`);
                                     res(`${ramDisk.name}/images/${id}_${threadID}_${imageURLkey}_c.jpg`);
-                                })
+                                });
                         });
                     });
                 });

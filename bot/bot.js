@@ -231,6 +231,7 @@ client.on('messageCreate', (message) => {
             tiktok.getTikTokData(threadID, url)
                 .then((data) => {
                     log.info(`[${threadID}] API request done, type ${data[0]}`);
+                    console.log(data);
 
                     let promise;
                     switch (data[0]) {
