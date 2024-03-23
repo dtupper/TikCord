@@ -12,6 +12,10 @@ const axios = require('axios');
 const fs = require("fs");
 const process = require("process");
 const tmp = require("tmp");
+
+const YTDlpWrap = require('yt-dlp-wrap').default;
+const ytDlpWrap = new YTDlpWrap(process.cwd() + '/yt-dlp');
+
 require('dotenv').config();
 
 const log = require("./log.js");
@@ -31,7 +35,7 @@ log.init(shardId);
 
 const ramDisk = {
     name: "/dev/shm/tikcord"
-}
+};
 if (!fs.existsSync(ramDisk.name)) fs.mkdirSync(ramDisk.name);
 settings.init();
 tiktok.init(ramDisk);
@@ -228,11 +232,77 @@ client.on('messageCreate', (message) => {
         }).then((url) => {
             log.info(`[${threadID}] Downloading ${url}`);
 
+            ytDlpWrap.exec([
+                url,
+                '-o',
+                `${process.cwd()}/videos/${url.split("?")[0].split("/")[5]}.mp4`,
+            ])
+                .on('ytDlpEvent', (eventType, eventData) =>
+                    console.log(eventType, eventData)
+                )
+                .on('error', (error) => {
+                    message.reply(`Could not download video (slideshows are currently broken, is that it?)`).then(() => { }).catch((e) => {
+                        log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
+                    });
+                })
+                .on('close', () => {
+                    let resp = `${process.cwd()}/videos/${url.split("?")[0].split("/")[5]}.mp4`;
+                    message.reply({ files: [resp] }).then(() => {
+                        //sending as reply to initial message
+                        log.info(`[${threadID}] Message sent (reply), deleting ${resp}`);
+                        fs.unlinkSync(resp);
+                        client.tiktokstats.dlS++;
+
+                        settings.getSetting(message.guild.id).then((settings) => {
+                            if (settings.deleteMessage) {
+                                log.info(`[${threadID}] Removing original message`);
+                                message.delete();
+                            } else {
+                                if (settings.deleteEmbed) {
+                                    log.info(`[${threadID}] Removing embed for original message`);
+                                    message.suppressEmbeds(true);
+                                }
+                            }
+                        });
+                    }).catch((e) => {
+                        if (e.code == 50035) {
+                            message.channel.send({ files: [resp] }).then(() => {
+                                //could not reply to embed, sending regularly
+                                log.info(`[${threadID}] Message sent (channel), deleting ${resp}`);
+                                fs.unlinkSync(resp);
+                                client.tiktokstats.dlS++;
+
+                                settings.getSetting(message.guild.id).then((settings) => {
+                                    if (settings.deleteEmbed) {
+                                        log.info(`[${threadID}] Removing embed for original message`);
+                                        message.suppressEmbeds(true);
+                                    }
+                                });
+                            }).catch((e) => {
+                                log.error(`[${threadID}] Error sending message (2): ${e.toString()}, deleting ${resp}`);
+                                fs.unlinkSync(resp);
+
+                                if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
+                                client.tiktokstats.dlFReasons[e.toString()]++;
+                                if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
+                            });
+                        } else {
+                            log.error(`[${threadID}] Error sending message (1): ${e}, deleting ${resp}`);
+                            fs.unlinkSync(resp);
+
+                            if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
+                            client.tiktokstats.dlFReasons[e.toString()]++;
+                            if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
+                        }
+                        return;
+                    });
+                });
+            /*
             tiktok.getTikTokData(threadID, url)
                 .then((data) => {
                     log.info(`[${threadID}] API request done, type ${data[0]}`);
                     console.log(data);
-
+            
                     let promise;
                     switch (data[0]) {
                         case tiktok.VidTypes.Video:
@@ -247,76 +317,30 @@ client.on('messageCreate', (message) => {
                         default:
                             promise = new Promise((res, rej) => { rej("BADTYPE"); });
                     }
-
+            
                     promise
                         .then((resp) => {
-                            message.reply({ files: [resp] }).then(() => {
-                                //sending as reply to initial message
-                                log.info(`[${threadID}] Message sent (reply), deleting ${resp}`);
-                                fs.unlinkSync(resp);
-                                client.tiktokstats.dlS++;
+                            */
 
-                                settings.getSetting(message.guild.id).then((settings) => {
-                                    if (settings.deleteMessage) {
-                                        log.info(`[${threadID}] Removing original message`);
-                                        message.delete();
-                                    } else {
-                                        if (settings.deleteEmbed) {
-                                            log.info(`[${threadID}] Removing embed for original message`);
-                                            message.suppressEmbeds(true);
-                                        }
-                                    }
-                                });
-                            }).catch((e) => {
-                                if (e.code == 50035) {
-                                    message.channel.send({ files: [resp] }).then(() => {
-                                        //could not reply to embed, sending regularly
-                                        log.info(`[${threadID}] Message sent (channel), deleting ${resp}`);
-                                        fs.unlinkSync(resp);
-                                        client.tiktokstats.dlS++;
+            /*
+        })
+            .catch((e, send) => {
+                if (send) {
+                    message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
+                        log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
+                    });
+                }
+                log.info(`Could not download video: ${e}`);
 
-                                        settings.getSetting(message.guild.id).then((settings) => {
-                                            if (settings.deleteEmbed) {
-                                                log.info(`[${threadID}] Removing embed for original message`);
-                                                message.suppressEmbeds(true);
-                                            }
-                                        });
-                                    }).catch((e) => {
-                                        log.error(`[${threadID}] Error sending message (2): ${e.toString()}, deleting ${resp}`);
-                                        fs.unlinkSync(resp);
-
-                                        if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
-                                        client.tiktokstats.dlFReasons[e.toString()]++;
-                                        if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
-                                    });
-                                } else {
-                                    log.error(`[${threadID}] Error sending message (1): ${e}, deleting ${resp}`);
-                                    fs.unlinkSync(resp);
-
-                                    if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
-                                    client.tiktokstats.dlFReasons[e.toString()]++;
-                                    if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
-                                }
-                                return;
-                            });
-                        })
-                        .catch((e, send) => {
-                            if (send) {
-                                message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
-                                    log.debug(`[${threadID}] Count not send video download failure message to channel: ${e.toString()}`);
-                                });
-                            }
-                            log.info(`Could not download video: ${e}`);
-
-                            if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
-                            client.tiktokstats.dlFReasons[e.toString()]++;
-                            if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
-                            return;
-                        });
-                })
-                .catch((e) => {
-                    console.log(e);
-                });
+                if (!Object.keys(client.tiktokstats.dlFReasons).includes(e.toString())) client.tiktokstats.dlFReasons[e.toString()] = 0;
+                client.tiktokstats.dlFReasons[e.toString()]++;
+                if (!(e.toString() == "NOTFOUND" || e.toString() == "NOTVIDEO" || e.toString() == "Cannot download audios!" || e.toString() == "DiscordAPIError[50013]: Missing Permissions")) client.tiktokstats.dlF++;
+                return;
+            });
+    })
+    .catch((e) => {
+        console.log(e);
+    });*/
         })
             .catch((e) => {
                 message.reply(`Could not download video: ${e}`).then(() => { }).catch((e) => {
