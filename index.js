@@ -26,75 +26,70 @@ function reduceObj(ex, add) {
     return ex;
 }
 
-const YTDlpWrap = require('yt-dlp-wrap').default;
-YTDlpWrap.getGithubReleases(1, 5).then((githubReleasesData) => {
-    YTDlpWrap.downloadFromGithub().then(() => {
-        let sinceWebsiteUpdated = 10;
-        function updateServerCount() {
-            manager.broadcastEval((client) => [client.guilds.cache, client.tiktokstats]).then((shards) => {
-                let serverCount = shards.reduce((total, shard) => total + shard[0].length, 0);
-                let memberCount = shards.reduce((total, shard) => total + shard[0].reduce((members, guild) => members + guild.memberCount, 0), 0);
+let sinceWebsiteUpdated = 10;
+function updateServerCount() {
+    manager.broadcastEval((client) => [client.guilds.cache, client.tiktokstats]).then((shards) => {
+        let serverCount = shards.reduce((total, shard) => total + shard[0].length, 0);
+        let memberCount = shards.reduce((total, shard) => total + shard[0].reduce((members, guild) => members + guild.memberCount, 0), 0);
 
-                //update shard activities
-                manager.broadcastEval((c, { servers }) => {
-                    [
-                        c.user.setPresence({ activities: [{ name: `${servers} servers`, type: 3 }], status: 'online' })
-                    ];
-                }, { context: { servers: serverCount } });
+        //update shard activities
+        manager.broadcastEval((c, { servers }) => {
+            [
+                c.user.setPresence({ activities: [{ name: `${servers} servers`, type: 3 }], status: 'online' })
+            ];
+        }, { context: { servers: serverCount } });
 
-                if (!process.env.DISABLE_HEARTBEAT) {
-                    //update bot listing sites
-                    if (sinceWebsiteUpdated > 9) {
-                        Object.keys(sites).forEach((site) => {
-                            axios.post(site, {
-                                [sites[site].variable]: serverCount
-                            }, {
-                                headers: {
-                                    'Authorization': sites[site].token
-                                }
-                            })
-                                .then((res) => {
-                                    console.log(`Updated ${site}`);
-                                })
-                                .catch((error) => {
-                                    console.log(`Failed to send stats to ${site}: ${error}`);
-                                });
-                        });
-                        sinceWebsiteUpdated = 0;
-                    } else {
-                        sinceWebsiteUpdated++;
-                    }
-
-                    //update manager
-                    axios.post('https://manager.snadol.com/api', {
-                        type: "botsIn",
-                        auth: process.env.MANAGER_TOKEN,
-                        bot: "tiktok",
-                        dlS: shards.reduce((total, shard) => total + shard[1].dlS, 0),
-                        dlF: shards.reduce((total, shard) => total + shard[1].dlF, 0),
-                        dlFR: shards.reduce((total, shard) => reduceObj(total, shard[1].dlFReasons), {}),
-                        members: memberCount,
-                        servers: serverCount,
-                        upsince: upSince
-                    }, { headers: { 'content-type': 'application/json' } })
-                        .then((res) => { })
+        if (!process.env.DISABLE_HEARTBEAT) {
+            //update bot listing sites
+            if (sinceWebsiteUpdated > 9) {
+                Object.keys(sites).forEach((site) => {
+                    axios.post(site, {
+                        [sites[site].variable]: serverCount
+                    }, {
+                        headers: {
+                            'Authorization': sites[site].token
+                        }
+                    })
+                        .then((res) => {
+                            console.log(`Updated ${site}`);
+                        })
                         .catch((error) => {
-                            console.log(`Failed to send stats to mananger: ${error}`);
+                            console.log(`Failed to send stats to ${site}: ${error}`);
                         });
-                }
-            });
-        }
+                });
+                sinceWebsiteUpdated = 0;
+            } else {
+                sinceWebsiteUpdated++;
+            }
 
-        const manager = new ShardingManager('./bot/bot.js', { token: process.env.TOKEN, totalShards: parseInt(process.env.SHARD_COUNT) });
-        manager.spawn({
-            delay: 500
-        }).then(() => {
-            updateServerCount();
-            setInterval(updateServerCount, 30 * 1000);
-        });
+            //update manager
+            axios.post('https://manager.snadol.com/api', {
+                type: "botsIn",
+                auth: process.env.MANAGER_TOKEN,
+                bot: "tiktok",
+                dlS: shards.reduce((total, shard) => total + shard[1].dlS, 0),
+                dlF: shards.reduce((total, shard) => total + shard[1].dlF, 0),
+                dlFR: shards.reduce((total, shard) => reduceObj(total, shard[1].dlFReasons), {}),
+                members: memberCount,
+                servers: serverCount,
+                upsince: upSince
+            }, { headers: { 'content-type': 'application/json' } })
+                .then((res) => { })
+                .catch((error) => {
+                    console.log(`Failed to send stats to mananger: ${error}`);
+                });
+        }
     });
+}
+
+const manager = new ShardingManager('./bot/bot.js', { token: process.env.TOKEN, totalShards: parseInt(process.env.SHARD_COUNT) });
+manager.spawn({
+    delay: 500
+}).then(() => {
+    updateServerCount();
+    setInterval(updateServerCount, 30 * 1000);
 });
 
 process.on('SIGINT', function () {
-    process.exit();
+    process.exit()
 });
