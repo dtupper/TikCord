@@ -41,13 +41,13 @@ function getTikTokData(threadID, url) {
             let result = response.data;
             log.debug(`[${threadID}] Data length ${JSON.stringify(result).length}`);
 
-            if (Object.keys(result).includes("image_data")) {
+            if (Object.keys(result.data).includes("image_post_info")) {
 		let images = [];
 		result.data.image_post_info.images.forEach((img) => {
 			images.push(img.display_image.url_list[0]);
 		});
                 res([VidTypes.Slideshow, images, result.data.music.play_url.url_list[0]]);
-            } else if (Object.keys(result).includes("video_data")) {
+            } else if (result.data.video.height > 0) {
                 res([VidTypes.Video, result.data.video.play_addr.url_list[0]]);
             } else {
                 res([VidTypes.Invalid, "unknown video!"]);
