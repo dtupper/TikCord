@@ -32,19 +32,23 @@ function getTikTokData(threadID, url) {
         }
 
         log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
-        log.debug(`[${threadID}] Requesting http://192.168.1.214:9000/api?url=${url}`);
+        log.debug(`[${threadID}] Requesting http://192.168.1.214:9000/api/hybrid/video_data?url=${url}`);
         axios({
             method: 'get',
-            url: `http://192.168.1.214:9000/api?url=${url}`
+            url: `http://192.168.1.214:9000/api/hybrid/video_data?url=${url}`
         })
         .then(function (response) {
             let result = response.data;
             log.debug(`[${threadID}] Data length ${JSON.stringify(result).length}`);
 
             if (Object.keys(result).includes("image_data")) {
-                res([VidTypes.Slideshow, [...result.image_data.no_watermark_image_list, result.image_data.no_watermark_image_list[result.image_data.no_watermark_image_list.length - 1]], result.music.play_url.uri]);
+		let images = [];
+		result.data.image_post_info.images.forEach((img) => {
+			images.push(img.display_image.url_list[0]);
+		});
+                res([VidTypes.Slideshow, images, result.data.music.play_url.url_list[0]]);
             } else if (Object.keys(result).includes("video_data")) {
-                res([VidTypes.Video, result.video_data.nwm_video_url_HQ]);
+                res([VidTypes.Video, result.data.video.play_addr.url_list[0]]);
             } else {
                 res([VidTypes.Invalid, "unknown video!"]);
             }
