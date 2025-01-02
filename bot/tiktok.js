@@ -26,7 +26,7 @@ function getTikTokData(threadID, url) {
     return new Promise((res, rej) => {
         log.debug(`[${threadID}] Fetching data from API for ${url}`);
 
-        const urlRe = /https:\/\/www\.tiktok\.com\/(?<user>.*?)\/video\/(?<id>\d*)/.exec(url);
+        const urlRe = /https:\/\/www\.tiktok\.com\/(?<user>.*?)\/(video|photo)\/(?<id>\d*)/.exec(url);
         if (!urlRe) {
             res([VidTypes.Invalid, "link is not a valid TikTok video!", false]);
         }
