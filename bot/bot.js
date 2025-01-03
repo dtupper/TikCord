@@ -60,7 +60,7 @@ const test_commands = [
     new SlashCommandBuilder().setName("shards").setDescription("get list of shards")
 ];
 
-const linkRegex = /(?<url>https?:\/\/(www\.)?(?<domain>vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|tiktok\.com\/@(.*[\/]))(?<path>[\d]+))/;
+const linkRegex = /(?<url>https?:\/\/(?<domain>(www\.)?(?<subdomain>vm\.|vt\.)?tiktok\.com)(\/t)?\/((?<uID>@[^\/]*)\/(?<linkType>video|photo)\/(?<vID>\d*)|(?<sID>[^\/]*))\/?)/;
 const request = async (url, config = {}) => await (await axios.get(url, config));
 
 if (!fs.existsSync(`${ramDisk.name}/videos/`)) fs.mkdirSync(`${ramDisk.name}/videos/`);
