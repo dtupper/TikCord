@@ -32,10 +32,10 @@ function getTikTokData(threadID, url) {
         }
 
         log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
-        log.debug(`[${threadID}] Requesting http://192.168.1.38:9000/video?itemId=${urlRe.groups.id}`);
+        log.debug(`[${threadID}] Requesting http://localhost:9000/video?itemId=${urlRe.groups.id}`);
         axios({
             method: 'get',
-            url: `http://192.168.1.38:9000/video?itemId=${urlRe.groups.id}`
+            url: `http://localhost:9000/video?itemId=${urlRe.groups.id}`
         })
         .then(function (response) {
             let result = response.data;
@@ -48,7 +48,7 @@ function getTikTokData(threadID, url) {
                 });
                 res([VidTypes.Slideshow, images, result.data.itemInfo.itemStruct.music.playUrl]);
             } else if (result.data.itemInfo.itemStruct.video.height > 0) {
-                res([VidTypes.Video, result.data.itemInfo.itemStruct.video.play_addr]);
+                res([VidTypes.Video, result.data.itemInfo.itemStruct.video.playAddr]);
             } else {
                 res([VidTypes.Invalid, "unknown video!"]);
             }
