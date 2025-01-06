@@ -32,10 +32,10 @@ function getTikTokData(threadID, url) {
         }
 
         log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
-        log.debug(`[${threadID}] Requesting http://192.168.1.214:9000/api/hybrid/video_data?url=${url}`);
+        log.debug(`[${threadID}] Requesting http://localhost:9000/api/hybrid/video_data?url=${url}`);
         axios({
             method: 'get',
-            url: `http://192.168.1.214:9000/api/hybrid/video_data?url=${url}`
+            url: `http://localhost:9000/api/hybrid/video_data?url=${url}`
         })
         .then(function (response) {
             let result = response.data;
