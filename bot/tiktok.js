@@ -8,6 +8,9 @@ const { exec } = require("child_process");
 const ffmpegutils = require("./ffmpeg.js");
 const log = require("./log.js");
 
+const api = "douyin.wtf";
+// const api = "192.168.1.38:9000"
+
 const VidTypes = {
     Video: 'Video',
     Slideshow: 'Slideshow',
@@ -32,10 +35,10 @@ function getTikTokData(threadID, url) {
         }
 
         log.debug(`[${threadID}] Regex returned ID ${urlRe.groups.id}`);
-        log.debug(`[${threadID}] Requesting http://localhost:9000/api/hybrid/video_data?url=${url}`);
+        log.debug(`[${threadID}] Requesting http://${api}/api/hybrid/video_data?url=${url}`);
         axios({
             method: 'get',
-            url: `http://localhost:9000/api/hybrid/video_data?url=${url}`
+            url: `http://${api}/api/hybrid/video_data?url=${url}`
         })
         .then(function (response) {
             let result = response.data;
