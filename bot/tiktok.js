@@ -8,8 +8,8 @@ const { exec } = require("child_process");
 const ffmpegutils = require("./ffmpeg.js");
 const log = require("./log.js");
 
-const api = "douyin.wtf";
-// const api = "192.168.1.38:9000"
+// const api = "douyin.wtf";
+const api = "192.168.1.38:9000"
 
 const VidTypes = {
     Video: 'Video',
